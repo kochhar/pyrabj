@@ -1,1 +1,9 @@
-**/.svn
+.svn
+/Makefile
+/bin
+/bootstrap
+/build
+/include
+/lib
+sp
+/src/pyrabj.egg-info

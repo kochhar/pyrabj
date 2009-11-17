@@ -45,8 +45,6 @@ class RabjServer(object):
                 }
         queue.update(meta)
         
-
-        import pdb; pdb.set_trace()
         resp, queue = self.store.queues.post(queue=queue)
         return RabjQueue(queue)
 
@@ -154,7 +152,7 @@ class RabjQueue(object):
                 added.extend(result['questions'])
                 payload = []
 
-        return results
+        return added
 
     def delete(self, questions):
         """

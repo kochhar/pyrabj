@@ -3,9 +3,12 @@ from rabj import VERSION as clientversion
 import containers as c, util as u
 
 
+_app_name = sys.argv[0] if sys.argv[0] else clientversion
+_app_name = _app_name.replace('\\', '/')
+
 _def_headers = { 'Accept': 'application/json',
                  'Content-type': 'application/json',
-                 'User-agent': '%srabjclient/%s' % (sys.argv[0] and sys.argv[0]+' ' or '', clientversion)
+                 'User-agent': '%srabjclient/%s' % (_app_name, clientversion)
                }
 
 _log = logging.getLogger("pyrabj.api")

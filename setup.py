@@ -9,9 +9,6 @@ date: Oct 14, 2008
 (c) 2008, Metaweb Technologies
 '''
 
-from ez_setup import use_setuptools
-use_setuptools()
-
 from setuptools import setup, find_packages
 import glob, os, stat
 
