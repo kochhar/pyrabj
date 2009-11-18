@@ -143,7 +143,7 @@ class RabjQueue(object):
         added = []
         payload = []
         for assertion, answerspace, meta in three_tuples:
-            question = { 'answerspace': assertion,
+            question = { 'assertion': assertion,
                          'answerspace': answerspace }
             question.update(meta)
             payload.append(question)
