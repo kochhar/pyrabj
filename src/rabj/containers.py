@@ -4,7 +4,6 @@ containers.py
 module containing containers for rabj objects
 '''
 import jsonlib2, collections, cStringIO, logging, pprint
-from rabj.api import RabjCallable
 import util as u
 
 _log = logging.getLogger("pyrabj.containers")
@@ -47,12 +46,13 @@ class RabjContainer(object):
         strbuf.close()
         return rabjstr
 
+from rabj.api import RabjCallable
 class RabjDict(RabjContainer, collections.Mapping):
     """Mapping container for rabj responses
     """
     def __init__(self, result, url, *args, **kwargs):
         super(RabjDict, self).__init__(data=result, url=url)
-        self.rabjcallable = RabjCallable(url, self.data.get('access_key'))
+        self.rabjcallable = RabjCallable(url, self.data.get('__metadata__', {}).get('access_key'))
         
     def __getattr__(self, attr):
         try:
