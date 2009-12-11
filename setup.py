@@ -27,7 +27,7 @@ setup(name='pyrabj',
       description='Python client for rabj',
       url='https://wiki.metaweb.com/index.php/RABJ/client',
       install_requires=["jsonlib2 == 1.5",
-                        "httplib2 == 0.4.0", ],
+                        "httplib2 == 0.5.0", ],
       package_dir={'': 'src'},
       packages=find_packages(exclude=["ez_setup"]),
       scripts=filter(executable, scripts_list)
