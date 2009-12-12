@@ -3,10 +3,9 @@
 /bin
 /bootstrap
 /build
+/docs/build
 /include
 /lib
 sp
 /src/pyrabj.egg-info
 *.pyc
-
-
