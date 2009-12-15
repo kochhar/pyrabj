@@ -8,10 +8,19 @@ placeholder for rabj module
 
 (c) Metaweb Technologies, 2009
 '''
-VERSION = 0.1
+import logging, sys
+import util as u
 
-import logging
-import util as u, containers as c
+"""
+The pyrabj version
+"""
+VERSION = '0.1'
+app_name = sys.argv[0] if sys.argv[0] else '__main__'
+
+"""
+The current application, used when creating a meaningful User-agent for http requests
+"""
+APP = app_name.replace('\\', '/')
 
 # add a default null handler to the logger to turn off warning messages
 _log = logging.getLogger('pyrabj')

@@ -1,161 +1,213 @@
-import logging, httplib2, jsonlib2, sys, urllib
-from rabj import VERSION as clientversion
-import containers as c, util as u
-
-
-_app_name = sys.argv[0] if sys.argv[0] else clientversion
-_app_name = _app_name.replace('\\', '/')
+import logging, httplib2, jsonlib2, urllib, multiprocessing
+from rabj import VERSION, APP
+import util as u
 
 _def_headers = { 'Accept': 'application/json',
                  'Content-type': 'application/json',
-                 'User-agent': '%srabjclient/%s' % (_app_name, clientversion)
+                 'User-agent': ':'.join([APP, "pyrabj.api", VERSION])
                }
 
 _log = logging.getLogger("pyrabj.api")
 
 class RabjCallable(object):
     """
-    The minimalist yet fully featured Rabj API class.
+    A minimalist yet fully featured implementation to use the RABJ API. A
+    RabjCallable instance points at a url. URL heirarchies are traversed by
+    accessing attributes of a RabjCallable. For instance::
 
-    Get RESTful data by accessing members of this class. The result
-    is decoded python objects (lists and dicts).
+        >>> rabj = RabjCallable('http://data.labs.freebase.com/rabj/')
+        >>> print rabj.store.url
+        http://data.labs.freebase.com/rabj/store/
+        >>> public_queues = rabj.store.queues.public
+        >>> print public_queues.url
+        http://data.labs.freebase.com/rabj/store/queues/public/
+        
+    The methods of a RabjCallable instance (:meth:`get`, :meth:`post`,
+    :meth:`put`, :meth:`delete`) translate to their HTTP equivalents. This
+    provides a very lightweight wrapper for the RESTful API. The results of
+    invoking a method is a tuple of a :class:`~rabj.api.RabjResponse` and a
+    :class:`~rabj.containers.RabjContainer` which holds the unwrapped
+    results::
 
-    The Rabj API is documented here:
-    https://wiki.metaweb.com/index.php/RABJ/API
-
-    Examples::
-
-    >>> rabj = RabjCallable('http://dw01.corp/rabj')
-
-    # Get a list of queues with my tags
-    >>> mytags = [ 'foo', 'bar' ]
-    >>> myqs = rabj.store.queues.tags.get(tag=mytags)
-
-    # Get a particular queue
-    >>> myq1 = rabj.store.queues['queue_124113044366_0'].get()
-    >>> print myq.result['id']
-    /rabj/store/queues/queue_124113044366_0
-
-    # Also supported (but totally weird)
-    >>> myq2 = rabj.store.queues.queue_124113044366_0.get()
-    >>> myq3 = getattr(rabj.store.queues, 'queue_124113044366_0').get()
-
-    # create a new queue
-    >>> queue = {'name': 'my dr suess queue',
-                 'owner': '/user/dr_seuss', 
-                 'tags': ['/en/cat', '/en/hat'],
-                 'votes': 2}                 
-    >>> qcreate = rabj.store.queues.post(queue=queue).result
-    >>> qid = qcreate['id']
+        >>> resp, result = public_queues.get()
+        >>> type(resp)
+        <class 'rabj.api.RabjResponse'>
+        >>> type(result)
+        <class 'rabj.containers.RabjList'>
+        
+    **Examples**
+    ::
     
-    # Add a list of questions to the newly created queue
-    >>> addq = qcreate.questions.post(questions=generate_questions(10))
+        >>> rabj = RabjCallable('http://data.labs.freebase.com/rabj/')
+        
+        # Get a list of queues with my tags
+        >>> mytags = [ 'foo', 'bar' ]
+        >>> myqs = rabj.store.queues.tags.get(tag=mytags)
+        
+        # Get a particular queue
+        >>> myq1 = rabj.store.queues['queue_124113044366_0'].get()
+        >>> print myq1.result['id']
+        /rabj/store/queues/queue_124113044366_0
+        
+        # Also supported (but totally weird)
+        >>> myq2 = rabj.store.queues.queue_124113044366_0.get()
+        >>> myq3 = getattr(rabj.store.queues, 'queue_124113044366_0').get()
+        
+        # create a new queue
+        >>> queue = {'name': 'my dr suess queue',
+                     'owner': '/user/dr_seuss', 
+                     'tags': ['/en/cat', '/en/hat'],
+                     'votes': 2}                 
+        >>> qcreate = rabj.store.queues.post(queue=queue).result
+        >>> qid = qcreate['id']
+        
+        # Add a list of questions to the newly created queue
+        >>> addq = qcreate.questions.post(questions=generate_questions(10))
     
-    Using the data returned::
-
-    Rabj client calls return decoded JSON wrapped in an object which allows you
-    to make further Rabj calls. For example,
-
-    # Retrieve a list of all questions for a queue
-    >>> qq = rabj.store.queues['queue_124113044366_0'].questions.get().result
-    >>> ques1_id = qq['questions'][0]['id']
-    >>> ques1 = qq['questions'][0].get()
-
-    # Retrieve a list of completed questions for a queue
-    >>> completed = qq.questions.complete.get().result
-    >>> completed_questions = completed['questions']
+    **Using the data returned**
     
-    # fetch the list of users who have answered the second question
-    >>> qq2_users = completed_questions[2].users.get()
+    The RabjContainer objects returned play a dual-role. First, they act as
+    containers like their python equivalantes (lists and
+    dicts). RabjContainers also provide the ability to make further Rabj
+    calls.
+    ::
     
-    # fetch the list of judgments for all the completed questions
-    judgments = [ q.judgments.get() for q in completed_questions ]
+        >>> resp, queue = rabj.store.queues['queue_124113044366_0'].questions.get()
+
+        # All questions on the queue
+        >>> queue_questions = queue['questions']
+        >>> type(queue_questions)
+        <class 'rabj.containers.RabjList'>
+        >>> print queue_questions
+
+        # The first question on the queue
+        >>> ques0ref = queue_questions[0]
+        >>> type(ques0ref)
+        <class 'rabj.containers.RabjDict'>
+        >>> print ques0ref
+
+        # Get the question 
+        >>> resp, question = ques0ref.get()
+        >>> print question
+
+        # Retrieve a list of completed questions for a queue
+        >>> resp, queue_comp = rabj.store.queues['queue_124113044366_0'].questions.complete.get()
+        >>> completed_questions = queue_comp['questions']
+    
+        # fetch the list of users who have answered the second question
+        >>> resp, qq2_users = completed_questions[2].users.get()
+     
+        # fetch the list of judgments for all the completed questions
+        >>> fetches = [ q.judgments.get() for q in completed_questions ]
+        >>> judgments = [ result['judgments'] for (resp, result) in fetches ]        
     """
     def __init__(self, url, access_key=None, *args, **kwargs):
-        _log.debug("RabjCallable.__init__")
         super(RabjCallable, self).__init__(*args, **kwargs)
-        self.host_url = u.host_url(url)
-        self.path = u.path(url)
-        self.access_key = access_key
-        self.rabjcall = RabjCall(self.base_url, self.access_key)
+        self._url = url if url.endswith('/') else url + '/'
+        self._access_key = access_key
+        self._http = httplib2.Http()
+        
+    def __repr__(self):
+        return "<%s@%s>" % (self.__class__.__name__, self._url)
 
     def __getattr__(self, attr):
-        _log.debug('RabjCallable.__getattr__(%s)', attr)
         try:
             return super(RabjCallable, self).__getattr__(attr)
         except AttributeError:
             return self[attr]
     
     def __getitem__(self, key):
-        _log.debug('RabjCallable.__getitem__(%s)', key)
-        return RabjCallable(self.base_url+"/"+key, self.access_key)
-
-    @property
-    def base_url(self):
-        if self.path == "/":
-            base_url = "%s" % (self.host_url)
-        else:
-            base_url = "%s%s" % (self.host_url, self.path)
-
-        return base_url
-
-    def get(self, **kwargs):
-        return self.rabjcall.get(**kwargs)
-
-    def post(self, **kwargs):
-        return self.rabjcall.post(**kwargs)
-
-    def put(self, **kwargs):
-        return self.rabjcall.put(**kwargs)
-
-    def delete(self, **kwargs):
-        return self.rabjcall.delete(**kwargs)
-
-
-class RabjCall(object):
-    """Encapsulates a call to Rabj
-    """
-    def __init__(self, url, access_key, *args, **kwargs):
-        self.url = url
-        self.access_key = access_key
-        self.http = httplib2.Http()
-
-    def __repr__(self):
-        return "<%s@%s>" % (self.__class__.__name__, self.url)
-
-    def get(self, **kwargs):
-        _log.debug('RabjCall.get(%s)', ", ".join(["%s=%s" %(k, v) for (k, v) in  kwargs.items()]))
-        return self.http_request(self.url, "GET", **kwargs)
+        return RabjCallable(self._url+key, access_key=self._access_key)
     
+    def get(self, **kwargs):
+        """Execute a HTTP GET request on the current url. Additional
+        parameters passed as kwargs will be added as query params.
+        """
+        return self.response(*self.request_params(self._url, "GET", **kwargs))
+
     def post(self, **kwargs):
-        _log.debug('RabjCall.post(%s)', ", ".join(["%s=%s" % (k, v) for (k, v) in kwargs.items()]))
-        return self.http_request(self.url, "POST", **kwargs)
+        """Execute a HTTP POST request on the current url. Additional
+        parameters passed as kwargs will be encoded as JSON and sent in the
+        body.
+        """
+        return self.response(*self.request_params(self._url, "POST", **kwargs))
         
     def put(self, **kwargs):
-        _log.debug('RabjCall.put(%s)', ", ".join(["%s=%s" % (k, v) for (k, v) in kwargs.items()]))
-        return self.http_request(self.url, "PUT", **kwargs)
+        """Execute a HTTP PUT request on the current url. Additional
+        parameters passed as kwargs will be encoded as JSON and sent in the
+        body.
+        """
+        return self.response(*self.request_params(self._url, "PUT", **kwargs))
 
     def delete(self, **kwargs):
-        _log.debug('RabjCall.delete(%s)', ", ".join(["%s=%s" % (k, v) for (k, v) in kwargs.items()]))
-        return self.http_request(self.url, "DELETE", **kwargs)
+        """Execute a HTTP DELETE request on the current url. Additional
+        parameters passed as kwargs will be encoded as JSON and sent in the
+        body.
+        """        
+        return self.response(*self.request_params(self._url, "DELETE", **kwargs))
 
-    def http_request(self, url, method, **kwargs):
-        params = { 'access_key': self.access_key }
+    def request_params(self, url, method, **kwargs):
+        """
+        Constructs the parameters for a http request
+        """
+        params = dict()
+        if self._access_key is not None:
+            params['access_key'] = self._access_key
 
         if kwargs:
             params.update(kwargs)
-        
+
         if method == "GET":
             url = url + "?" + urllib.urlencode(params, doseq=True)
             body = None
         else:
             body = jsonlib2.dumps(params, escape_slash=False)
 
+        return url, method, body, _def_headers
+    
+    def response(self, url, method, body, headers):
+        """
+        Executes the request and wraps into a RabjResponse
+        """
         _log.debug("Sending %s to url %s", method.lower(), url)
-        resp, content = self.http.request(url, method, body, _def_headers)
+        resp, content = self._http.request(url, method, body, headers)
         rabj_resp = RabjResponse(content, resp, url)
         return rabj_resp, rabj_resp.result
+
+
+def parallel_fetch(fetch_params, parallelism=2):
+    """
+    Fetch a set of urls in parallel.
+
+    fetch_params    
+        params to pass to a Fetcher, should be tuples of (url, method, body,
+        headers)
+        
+    parallelism
+        The number of processes to split into
+    """
+    assert parallelism > 0
     
+    task_queue = multiprocessing.JoinableQueue()
+    result = multiprocessing.Queue()        
+
+    pool = [ u.Fetcher(task_queue, result) for _ in xrange(parallelism) ]
+    _log.info("Starting thread pool with %i workers", parallelism)
+    for p in pool:
+        p.start()
+
+    _log.info("placing %i url fetches on task queue", len(fetch_params))
+    for param_set in fetch_params:
+        task_queue.put(param_set)
+        
+    task_queue.join()
+    for p in pool:
+        p.stop()
+
+    results = [ RabjResponse(c, r, url) for (url, (r, c)) in [ result.get() for i in range(result.qsize()) ] ]
+    return [ (resp, resp.result) for resp in results ]
+
+import containers as c
 class RabjResponse(object):
     """Container for a response from rabj with convenience methods
     """
@@ -167,7 +219,7 @@ class RabjResponse(object):
         self.container_factory = c.RabjContainerFactory(url)
         
     def __repr__(self):
-        return "%s@%s" % (self.__class__.__name__, self.url)
+        return "%s@%s" % (self.__class__.__name__, self._url)
     
     def __str__(self):
         return str(self.envelope)
@@ -208,7 +260,7 @@ class RabjResponse(object):
                 raise RabjError(resp.status, resp.reason, {'msg': e.message}, content)
         else:
             _log.warn("Non-json response '%s' when fetching %s",
-                      content, resp.get('content-location', self.url))
+                      content, resp.get('content-location', self._url))
             raise RabjError(resp.status, resp.reason, {'msg': content}, content)
 
 
@@ -237,4 +289,4 @@ class RabjError(Exception):
         return self.env
 
 
-__all__ = [ 'RabjCallable', 'RabjCall', 'RabjResponse' , 'RabjError' ]
+__all__ = [ 'RabjCallable', 'RabjResponse' , 'RabjError' ]
