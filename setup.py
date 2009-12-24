@@ -29,6 +29,6 @@ setup(name='pyrabj',
       install_requires=["jsonlib2 == 1.5.1",
                         "httplib2 == 0.5.0", ],
       package_dir={'': 'src'},
-      packages=find_packages(exclude=["ez_setup"]),
+      packages=find_packages('src', exclude=["ez_setup"]),
       scripts=filter(executable, scripts_list)
 )
