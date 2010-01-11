@@ -21,7 +21,7 @@ class RabjServer(object):
     server_url
         A url for the rabj server hosting the queue.
     """    
-    def __init__(self, server_url):
+    def __init__(self, server_url, store_path='rabj/store/'):
         """Create a new reference to a rabj server."""
         if server_url.endswith('/rabj/store/'):
             self.server = server_url[:-11]
@@ -30,7 +30,7 @@ class RabjServer(object):
         else:
             self.server = server_url
         
-        self.store = api.RabjCallable(self.server).rabj.store
+        self.store = api.RabjCallable(self.server)[store_path]
         self.threads = 1
         
     def create_queue(self, name, owner, votes, access_key, tags=None, **meta):
@@ -158,9 +158,11 @@ class RabjQueue(object):
     def parallel(self):
         return True
         
-    def get(self, key, **kwargs):
-        return self.queue.get(key, **kwargs)
-
+    def update(self):
+        """Save modifications to the current queue."""
+        resp, result = self.queue.put(queue=self.queue)
+        self.queue = result
+    
     def addone(self, assertion, answerspace, **meta):
         """
         Add a single question defined by its assertion, answerspace and any
@@ -365,10 +367,11 @@ class RabjQuestion(object):
     def __getitem__(self, key):
         return self.question[key]
 
-    def get(self, key, **kwargs):
-        return self.question.get(key, **kwargs)
+    def update(self):
+        """Saves modifications to the question"""
+        resp, result = self.question.put(question=self.question)
+        self.question = result
     
     def judgments(self):
         resp, result = self.question.judgments.get()
         return result['judgments']
-    
