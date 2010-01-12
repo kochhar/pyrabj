@@ -13,14 +13,22 @@ This library and its dependencies require:
 Installation
 ============
 
-The easiest way to get pyrabj is if you have setuptools installed::
+The easiest way to get pyrabj is if you have easy_install available::
 
 	easy_install http://github.com/kochhar/pyrabj/tarball/master
 
-Without setuptools, download it from from `Github
-<http://github.com/kochhar/pyrabj/downloads>`_, untar it and run::
+This will install the latest version of pyrabj. Without easy_install,
+download the source from from `Github
+<http://github.com/kochhar/pyrabj/archives/master>`_, unpack the downloaded
+archive and run::
 
 	python setup.py install
 
-The current development version can be found at
-http://github.com/kochhar/pyrabj/tarball/master.
+The current `development version
+<http://github.com/kochhar/pyrabj/tarball/master#egg=pyrabj-dev>`_ can be
+added to your setuptools enabled package by adding::
+
+    install_requires = [ "pyrabj == dev" ]
+
+to your setup.py file.
+
