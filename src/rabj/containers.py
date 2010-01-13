@@ -52,7 +52,7 @@ class RabjDict(RabjContainer, collections.Mapping):
     """
     def __init__(self, result, url, *args, **kwargs):
         super(RabjDict, self).__init__(data=result, url=url)
-        self.rabjcallable = RabjCallable(url, self.data.get('__metadata__', {}).get('access_key'))
+        self.rabjcallable = RabjCallable(url, self.data.get('__metadata__', {}).get('access_key', self.data.get('access_key')))
         
     def __getattr__(self, attr):
         try:
@@ -88,15 +88,24 @@ class RabjDict(RabjContainer, collections.Mapping):
     def __len__(self):
         return len(self.data)
     
-class RabjList(RabjContainer, collections.Sequence):
+class RabjList(RabjContainer, collections.MutableSequence):
     """Sequence container for rabj responses
     """
     def __init__(self, result, url):
         super(RabjList, self).__init__(data=result, url=url)
-    
+
     def __getitem__(self, i):
         item = self.data[i]
         return self.container_factory.container(item)
+
+    def __setitem__(self, i, item):
+        self.data[i] = item
+
+    def __delitem__(self, i):
+        del self.data[i]
+
+    def insert(self, i, item):
+        return self.data.insert(i, item)
     
     def __len__(self):
         return len(self.data)

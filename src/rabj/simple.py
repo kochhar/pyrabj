@@ -62,19 +62,17 @@ class RabjServer(object):
         resp, result = self.store[self._norm_qid(queue_id)].get(access_key=access_key)
         return RabjQueue(result, threads=self.threads)
     
-    def delete_queue(self, queue_id, access_key=None):
+    def delete_queue(self, queue, access_key=None):
         """
-        Delete a queue by id        
+        Delete a queue by a string id or a mapping object with an id field.
         """
+        if isinstance(queue, RabjQueue) or hasattr(queue, 'get'):
+            queue_id = queue['id']
+        else:
+            queue_id = queue
+        
         resp, result = self.store[self._norm_qid(queue_id)].delete(access_key=access_key)
         return result
-    
-    def queues_by_accesskey(self, access_key):
-        """
-        Fetch a list of queues which may be operated with a given access key
-        """
-        resp, result = self.store.queues.access_key.get(access_key=access_key)
-        return [ RabjQueue(queue, threads=self.threads) for queue in result ]
 
     def public_queues(self):
         """
@@ -83,6 +81,17 @@ class RabjServer(object):
         resp, result = self.store.queues.public.get()
         return [ RabjQueue(queue, threads=self.threads) for queue in result ]
     
+    # common aliases
+    queue_by_id = get_queue
+    queues_by_id = get_queue
+    
+    def queues_by_accesskey(self, access_key):
+        """
+        Fetch a list of queues which may be operated with a given access key
+        """
+        resp, result = self.store.queues.access_key.get(access_key=access_key)
+        return [ RabjQueue(queue, threads=self.threads) for queue in result ]
+
     def queues_by_tags(self, tags, access_key=None):
         """
         Fetch a list of queues which have the given tags. Optionally include
@@ -100,6 +109,8 @@ class RabjServer(object):
         resp, result = self.store.queues.owner.get(owner=owner)
         return [ RabjQueue(queue, threads=self.threads) for queue in result ]
 
+    queues_by_public = public_queues
+    
     def _norm_qid(self, qid):
         if qid.startswith('/rabj/store'):
             return qid[11:]
@@ -138,7 +149,7 @@ class RabjQueue(object):
         assert (queue!=None) ^ ((server_url!=None) & (id!=None) & (access_key!=None))
 
         if not queue:
-            queue = api.RabjCallable(server_url, access_key=access_key)[id].get()
+            resp, queue = api.RabjCallable(server_url, access_key=access_key)[id].get()
         
         self.queue = queue
         self.threads = 2 if threads > 1 else 1
@@ -162,6 +173,7 @@ class RabjQueue(object):
         """Save modifications to the current queue."""
         resp, result = self.queue.put(queue=self.queue)
         self.queue = result
+        return self
     
     def addone(self, assertion, answerspace, **meta):
         """
@@ -199,8 +211,39 @@ class RabjQueue(object):
                 added.extend(result['questions'])
                 payload = []
 
+        if len(payload):
+            resp, result = self.queue.questions.post(questions=payload)
+            added.extend(result['questions'])
+            payload = []
+        
         return added
 
+    def getone(self, question=None):
+        """
+        Get one question from the queue. Optionally the id of the question to
+        fetch can be passed as a parameter.
+        """
+        if question is not None:
+            assert isinstance(question, [basestring, dict])
+            if isinstance(question, dict):
+                questionid = question['id']
+            else:
+                questionid = question
+
+            resp, question = self.queue['../../../'][questionid].get()            
+        else:
+            resp, question = self.queue.questions.get(limit=1)[0]['id']
+
+        return RabjQuestion(question)
+        
+    def getall(self):
+        """
+        Get a list of all the question on the queue
+        """
+        resp, result = self.queue.questions.get()
+        fetch = result['questions']
+        return [ RabjQuestion(res) for (r, res) in self._get(fetch) ]
+        
     def delete(self, questions):
         """
         Delete a set of questions from a queue.
@@ -208,7 +251,7 @@ class RabjQueue(object):
         questions
             An iterable of RabjQuestion objects which should have ids
         """
-        resp, result = self.queue.questions.delete(questions=[q['id'] for q in questions])
+        resp, result = self.queue.questions.delete(questions=[{'id': q['id']} for q in questions])
         return result
 
     def deleteall(self):
@@ -282,10 +325,7 @@ class RabjQueue(object):
                                       simple_status["incomplete"])
         return simple_status
 
-    def all_questions(self):
-        resp, result = self.queue.questions.get()
-        fetch = result['questions']
-        return [ RabjQuestion(res) for (r, res) in self._get(fetch) ]
+    all_questions = getall
 
     def completed_questions(self, since=None, judgments=False):
         """
@@ -355,7 +395,8 @@ class RabjQuestion(object):
         assert (question!=None) ^ ((server!=None) & (id!=None))
 
         if not question:
-            question = api.RabjCallable(server)[id].get()
+            resp, question = api.RabjCallable(server)[id].get()
+            
         self.question = question
 
     def __repr__(self):
@@ -367,11 +408,23 @@ class RabjQuestion(object):
     def __getitem__(self, key):
         return self.question[key]
 
+    def __setitem__(self, key, value):
+        return self.question.__setitem__(key, value)
+
+    def __delitem__(self, key):
+        return self.question.__delitem__(key)
+    
     def update(self):
         """Saves modifications to the question"""
         resp, result = self.question.put(question=self.question)
         self.question = result
-    
+        return self
+
+    def delete(self):
+        """Deletes the question from rabj"""
+        resp, result = self.question.delete()
+        return result
+        
     def judgments(self):
         resp, result = self.question.judgments.get()
         return result['judgments']
