@@ -118,28 +118,29 @@ class RabjServer(object):
             return qid[6:]
         else:
             return qid
-        
 
-    
 class RabjQueue(object):
     """
     A wrapper class around a rabj queue, provides convenience methods for
-    introspecting the state of a queue. A rabj queue instance can be created
-    either from a :class:`~rabj.api.RabjCallable` object or by providing a server url,
-    a queue id and an access_key.
+    introspecting and modifying the state of a queue. The class behaves
+    similar to a dict, allowing fields to be read and set.
+
+    A rabj queue instance can be created either from a
+    :class:`~rabj.api.RabjCallable` object or by providing a server url, a
+    queue id and an access_key.
 
     queue    
-        A :class:~rabj.api.RabjCallable which references a queue. Required
+        A :class:`~rabj.api.RabjCallable` which references a queue. Required
         if ``server_url`` and ``id`` are None
 
     server_url
-        A url for the rabj server hosting the queue. Required if queue=None
+        A url for the rabj server hosting the queue. Required if ``queue=None``
 
     id
-        The id of the queue on the server. Required if queue=None
+        The id of the queue on the server. Required if ``queue=None``
 
     access_key
-        The access key for the queue on the server. Required if queue=None
+        The access key for the queue on the server. Required if ``queue=None``
     """
     def __init__(self, queue=None, server_url=None, id=None, access_key=None, threads=1):
         """
@@ -165,6 +166,12 @@ class RabjQueue(object):
     def __getitem__(self, key):
         return self.queue[key]
 
+    def __setitem__(self, key, value):
+        self.queue[key] = value
+
+    def __delitem__(self, key):
+        del self.queue[key]
+    
     @property
     def parallel(self):
         return True
@@ -389,8 +396,11 @@ class RabjQueue(object):
 class RabjQuestion(object):
     """
     A wrapper class around a rabj question, provides convenience methods for
-    introspecting the state of the question
+    introspecting the state of the question. This class behaves much like a
+    dictionary (though it cannot be serialized) allowing fields to be read and
+    set.
     """
+    
     def __init__(self, question=None, server=None, id=None):
         assert (question!=None) ^ ((server!=None) & (id!=None))
 
@@ -426,5 +436,7 @@ class RabjQuestion(object):
         return result
         
     def judgments(self):
+        """Fetches this questions judgments"""
         resp, result = self.question.judgments.get()
         return result['judgments']
+    

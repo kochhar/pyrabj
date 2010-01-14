@@ -16,10 +16,10 @@ class RabjCallable(object):
     accessing attributes of a RabjCallable. For instance::
 
         >>> rabj = RabjCallable('http://data.labs.freebase.com/rabj/')
-        >>> print rabj.store.url
+        >>> print rabj.store._url
         http://data.labs.freebase.com/rabj/store/
         >>> public_queues = rabj.store.queues.public
-        >>> print public_queues.url
+        >>> print public_queues._url
         http://data.labs.freebase.com/rabj/store/queues/public/
         
     The methods of a RabjCallable instance (:meth:`get`, :meth:`post`,
@@ -42,35 +42,34 @@ class RabjCallable(object):
         
         # Get a list of queues with my tags
         >>> mytags = [ 'foo', 'bar' ]
-        >>> myqs = rabj.store.queues.tags.get(tag=mytags)
+        >>> resp, myqs = rabj.store.queues.tags.get(tag=mytags)
         
         # Get a particular queue
-        >>> myq1 = rabj.store.queues['queue_124113044366_0'].get()
-        >>> print myq1.result['id']
+        >>> resp, myq1 = rabj.store.queues['queue_124113044366_0'].get()
+        >>> print myq1['id']
         /rabj/store/queues/queue_124113044366_0
         
         # Also supported (but totally weird)
-        >>> myq2 = rabj.store.queues.queue_124113044366_0.get()
-        >>> myq3 = getattr(rabj.store.queues, 'queue_124113044366_0').get()
+        >>> resp2, myq2 = rabj.store.queues.queue_124113044366_0.get()
+        >>> resp3, myq3 = getattr(rabj.store.queues, 'queue_124113044366_0').get()
         
         # create a new queue
         >>> queue = {'name': 'my dr suess queue',
                      'owner': '/user/dr_seuss', 
                      'tags': ['/en/cat', '/en/hat'],
                      'votes': 2}                 
-        >>> qcreate = rabj.store.queues.post(queue=queue).result
+        >>> resp, qcreate = rabj.store.queues.post(queue=queue)
         >>> qid = qcreate['id']
         
         # Add a list of questions to the newly created queue
-        >>> addq = qcreate.questions.post(questions=generate_questions(10))
+        >>> resp, addq = qcreate.questions.post(questions=generate_questions(10))
     
     **Using the data returned**
     
     The RabjContainer objects returned play a dual-role. First, they act as
     containers like their python equivalantes (lists and
     dicts). RabjContainers also provide the ability to make further Rabj
-    calls.
-    ::
+    calls::
     
         >>> resp, queue = rabj.store.queues['queue_124113044366_0'].questions.get()
 
