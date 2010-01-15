@@ -3,9 +3,7 @@ import rabj.simple as s
 
 userid = os.environ.get('LOGNAME', os.getlogin())
 
-def create_or_find_bogus_queue(name, owner, passwd):
-    server = s.RabjServer(s.RABJ_PROD)
-
+def create_or_find_bogus_queue(server, name, owner, passwd):
     queue_tags = ["tutorial", "bogus", owner]
     myqueues = server.queues_by_tags(queue_tags, access_key=passwd)
 
@@ -54,27 +52,43 @@ def create_questions(queue):
 if __name__ == "__main__":
     from sys import stdin, stdout
 
+    # figure out trunk/prod
+    while True:
+        stdout.write("Run against rabj.trunk? [Y/n]: ")
+        stdout.flush()
+
+        strtrunk = stdin.readline().strip()
+        if len(strtrunk):
+            if strtrunk.lower() == 'yes' or strtrunk.lower() == 'y':
+                host = s.RABJ_TRUNK
+                break
+            elif strtrunk.lower() == 'no' or strtrunk.lower() == 'n':
+                host = s.RABJ_PROD
+                break
+
+        stdout.write("I don't understand your response %s. Try Y or N\n" % strtrunk)
+                
     stdout.write("Give a name to your queue [default: tutorial-bogus-%(owner)s]: " % {"owner": userid})
     stdout.flush()
-    strname = stdin.readline()
-    if len(strname.strip()):
-        name = strname.strip()
+    strname = stdin.readline().strip()
+    if len(strname):
+        name = strname
     else:
         name = "tutorial-bogus-%(owner)s"
 
     stdout.write("The freebase user who owns this queue [default: %(owner)s]: " % {"owner": userid})
     stdout.flush()
 
-    strowner = stdin.readline()
+    strowner = stdin.readline().strip()
     if len(strowner.strip()):
-        owner = strowner.strip()
+        owner = strowner
     else:
         owner = "/user/%(owner)s"
 
     stdout.write("Enter the access key for your queue [default: tutorial]: ")
     stdout.flush()
     
-    strpasswd = stdin.readline()
+    strpasswd = stdin.readline().strip()
     if len(strpasswd.strip()):
         passwd = strpasswd.strip()
     else:
@@ -83,7 +97,8 @@ if __name__ == "__main__":
     name = name % {"owner": userid}
     owner = owner % {"owner": userid}
 
-    queue = create_or_find_bogus_queue(name, owner, passwd)
+    server = s.RabjServer(host)
+    queue = create_or_find_bogus_queue(server, name, owner, passwd)
     print "Created queue %s with tags %s and access key %s" % (queue['id'], queue['tags'], passwd)
     legit = create_questions(queue)
     bogus = create_bogus_questions(queue)
