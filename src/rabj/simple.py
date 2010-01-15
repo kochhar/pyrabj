@@ -37,7 +37,15 @@ class RabjServer(object):
         """
         Create a new queue giving it a name, owner, a required number of
         votes and optionally including an access_key, tags and any other
-        metadata to be associated."""
+        metadata to be associated.
+
+        >>> server = RabjServer(RABJ_TRUNK)
+        >>> queue = server.create_queue('pyrabj doc queue', '/user/kochhar', 1, access_key='testkey')
+        >>> print queue['name']
+        pyrabj doc queue
+        >>> print queue['owner']
+        /user/kochhar
+        """
         votes = int(votes)
         
         if access_key is None:
@@ -57,20 +65,39 @@ class RabjServer(object):
 
     def get_queue(self, queue_id, access_key=None):
         """
-        Fetch a queue by its id
+        Fetch a queue given it's id
+
+        >>> server = RabjServer(RABJ_TRUNK)
+        >>> queue = server.create_queue('pyrabj doc queue', '/user/kochhar', 1, access_key='testkey')
+        >>> queue_copy = server.queue_by_id(queue_id=queue['id'], access_key='testkey')
+        >>> queue == queue_copy
+        True
         """
         resp, result = self.store[self._norm_qid(queue_id)].get(access_key=access_key)
         return RabjQueue(result, threads=self.threads)
     
     def delete_queue(self, queue, access_key=None):
         """
-        Delete a queue by a string id or a mapping object with an id field.
+        Delete a queue by providing either a string id or a mapping object
+        with an id field (Eg: a RabjQueue instance or a dict with an
+        'id'). If no access key is provided and queue is a mapping type,
+        this class will try using the access_key field in queue if one
+        exists.
+
+        >>> server = RabjServer(RABJ_TRUNK)
+        >>> queue = server.create_queue('pyrabj doc queue', '/user/kochhar', 1, access_key='testkey')
+        >>> deletion = server.delete_queue(queue)
+        >>> queue['id'] == deletion['id']
+        True
+        >>> deletion['delete']
+        u'deleted'
         """
         if isinstance(queue, RabjQueue) or hasattr(queue, 'get'):
             queue_id = queue['id']
+            access_key = access_key if access_key is not None else queue.get('access_key')
         else:
             queue_id = queue
-        
+
         resp, result = self.store[self._norm_qid(queue_id)].delete(access_key=access_key)
         return result
 
@@ -83,7 +110,12 @@ class RabjServer(object):
     
     # common aliases
     queue_by_id = get_queue
-    queues_by_id = get_queue
+
+    def queues_by_id(self, queue_id, access_key=None):
+        """
+        Equivalent to queue_by_id but returns results as a list.
+        """
+        return [ self.get_queue(queue_id, access_key) ]
     
     def queues_by_accesskey(self, access_key):
         """
