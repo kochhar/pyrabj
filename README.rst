@@ -28,7 +28,7 @@ The current `development version
 <http://github.com/kochhar/pyrabj/tarball/master#egg=pyrabj-dev>`_ can be
 added to your setuptools enabled package by adding::
 
-    install_requires = [ "pyrabj == dev" ]
+    install_requires = [ "pyrabj >=0.0, == dev" ]
 
 to your setup.py file.
 
