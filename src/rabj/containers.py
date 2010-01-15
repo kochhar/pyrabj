@@ -70,6 +70,12 @@ class RabjDict(RabjContainer, collections.Mapping):
     def __setitem__(self, key, value):
         self.data[key] = value
 
+    def __delitem__(self, key):
+        try:
+            del self.data[key]
+        except KeyError, e:
+            raise KeyError(e)
+            
     def get(self, key=None, **kwargs):
         if key is None:
             return self.rabjcallable.get(**kwargs)
