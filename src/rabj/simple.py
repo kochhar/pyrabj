@@ -418,7 +418,7 @@ class RabjQueue(object):
 
     def _get(self, rabj_callables):
         if self.parallel == True:
-            fetched = api.parallel_fetch([ rc.request_params(rc.url, "GET") for rc in rabj_callables ], self.threads)
+            fetched = api.parallel_fetch([ rc.request_params(rc._url, "GET") for rc in rabj_callables ], self.threads)
         else:
             fetched = [ rc.get() for rc in rabj_callables ]
 
