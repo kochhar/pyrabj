@@ -134,11 +134,11 @@ class RabjServer(object):
         resp, result = self.store.queues.tags.get(tag=tags, access_key=access_key)
         return [ RabjQueue(queue, threads=self.threads) for queue in result ]
     
-    def queues_by_owner(self, owner):
+    def queues_by_owner(self, owner, access_key=None):
         """
         Fetch a list of queues by owner
         """
-        resp, result = self.store.queues.owner.get(owner=owner)
+        resp, result = self.store.queues.owner.get(owner=owner, access_key=access_key)
         return [ RabjQueue(queue, threads=self.threads) for queue in result ]
 
     queues_by_public = public_queues
