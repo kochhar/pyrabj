@@ -138,7 +138,7 @@ class RabjServer(object):
         """
         Fetch a list of queues by owner
         """
-        resp, result = self.store.queues.owner.get(owner=owner, access_key=access_key)
+        resp, result = self.store.users[owner].queues.get(access_key=access_key)
         return [ RabjQueue(queue, threads=self.threads) for queue in result ]
 
     queues_by_public = public_queues
@@ -206,7 +206,7 @@ class RabjQueue(object):
     
     @property
     def parallel(self):
-        return True
+        return False
         
     def update(self):
         """Save modifications to the current queue."""
