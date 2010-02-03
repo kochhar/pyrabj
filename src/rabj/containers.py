@@ -46,6 +46,13 @@ class RabjContainer(object):
         strbuf.close()
         return rabjstr
 
+    def json(self):
+        """
+        Convert the object to it's json representation
+        """
+        return jsonlib2.dumps(self.data)
+    
+    
 from rabj.api import RabjCallable
 class RabjDict(RabjContainer, collections.Mapping):
     """Mapping container for rabj responses
