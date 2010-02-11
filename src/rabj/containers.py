@@ -46,7 +46,7 @@ class RabjContainer(object):
         strbuf.close()
         return rabjstr
 
-    def json(self):
+    def tojson(self):
         """
         Convert the object to it's json representation
         """
@@ -87,7 +87,7 @@ class RabjDict(RabjContainer, collections.Mapping):
         if key is None:
             return self.rabjcallable.get(**kwargs)
 
-        return super(RabjDict, self).get(key)
+        return super(RabjDict, self).get(key, **kwargs)
 
     def post(self, **kwargs):
         return self.rabjcallable.post(**kwargs)
