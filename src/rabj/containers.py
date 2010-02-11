@@ -83,11 +83,11 @@ class RabjDict(RabjContainer, collections.Mapping):
         except KeyError, e:
             raise KeyError(e)
             
-    def get(self, key=None, **kwargs):
+    def get(self, key=None, *args, **kwargs):
         if key is None:
             return self.rabjcallable.get(**kwargs)
 
-        return super(RabjDict, self).get(key, **kwargs)
+        return super(RabjDict, self).get(key, *args, **kwargs)
 
     def post(self, **kwargs):
         return self.rabjcallable.post(**kwargs)
