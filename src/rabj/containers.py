@@ -50,7 +50,7 @@ class RabjContainer(object):
         """
         Convert the object to it's json representation
         """
-        return jsonlib2.dumps(self.data)
+        return jsonlib2.dumps(self.data, escape_slash=False)
     
     
 from rabj.api import RabjCallable
