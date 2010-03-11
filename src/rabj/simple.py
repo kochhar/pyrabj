@@ -224,7 +224,7 @@ class RabjQueue(object):
         question.update(meta)
         resp, result = self.queue.questions.post(questions=[question])
         return result['questions']
-
+    
     def addall(self, three_tuples, pagesize=1000):
         """
         Add questions passed as three-tuples (assertion, answerspace,
@@ -256,7 +256,7 @@ class RabjQueue(object):
             payload = []
         
         return added
-
+    
     def getone(self, question=None):
         """
         Get one question from the queue. Optionally the id of the question to
@@ -274,7 +274,7 @@ class RabjQueue(object):
             resp, question = self.queue.questions.get(limit=1)[0]['id']
 
         return RabjQuestion(question)
-        
+    
     def getall(self):
         """
         Get a list of all the question on the queue
@@ -282,23 +282,67 @@ class RabjQueue(object):
         resp, result = self.queue.questions.get()
         fetch = result['questions']
         return [ RabjQuestion(res) for (r, res) in self._get(fetch) ]
-        
-    def delete(self, questions):
+    
+    def remove(self, questions, delete=False):
         """
-        Delete a set of questions from a queue.
+        Removes somes questions from a queue, does not delete questions by
+        default.
 
         questions
             An iterable of RabjQuestion objects which should have ids
+
+        delete
+            Boolean indicating whether questions are deleted
         """
         resp, result = self.queue.questions.delete(questions=[{'id': q['id']} for q in questions])
+
+        if delete:
+            for q in questions:
+                q.delete()
+        
         return result
 
-    def deleteall(self):
+    def delete_cascade(self, questions):
         """
-        Delete all questions from a queue
+        Removes some questions from a queue and deletes the questions.
         """
-        questions = self.all_questions()
-        return self.delete(questions)
+        return self.remove(questions, delete=True)
+
+    def removeall(self, delete=False):
+        """
+        Removes all questions from a queue, does not delete questions by
+        default.
+
+        delete
+            Boolean indicating whether questions are deleted
+        """
+        return self.remove(self.all_questions(), delete)
+    
+    def deletall_cascade(self):
+        """
+        Remove all questions from a queue and delete the questions.
+        """
+        return self.remove(self.all_questions(), delete=True)
+
+    #### Some aliases ####
+    def delete(self, *args, **kwargs):
+        """
+        Alias for remove
+        """
+        return self.remove(*args, **kwargs)
+    
+    def deleteall(self, *args, **kwargs):
+        """
+        Alias for removeall
+        """
+        return self.removall(*args, **kwargs)
+
+    add_one = addone
+    add_all = addall
+    get_one = getone
+    get_all = getall
+    remove_all = removeall
+    delete_all = deleteall
     
     @property
     def questions(self):
