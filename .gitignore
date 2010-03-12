@@ -1,0 +1,11 @@
+.svn
+/Makefile
+/bin
+/bootstrap
+/build
+/docs
+/include
+/lib
+sp
+/src/pyrabj.egg-info
+*.pyc
