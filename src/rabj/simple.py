@@ -274,6 +274,7 @@ class RabjQueue(object):
             resp, question = self.queue.questions.get(limit=1)[0]['id']
 
         return RabjQuestion(question)
+
         
     def getall(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
         """
