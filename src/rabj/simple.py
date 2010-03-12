@@ -274,15 +274,63 @@ class RabjQueue(object):
             resp, question = self.queue.questions.get(limit=1)[0]['id']
 
         return RabjQuestion(question)
+<<<<<<< variant A
     
     def getall(self):
+>>>>>>> variant B
+        
+    def getall(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
+======= end
         """
         Get a list of all the question on the queue
+
+        state
+            Filter the questions returned by state (complete|wanting|partial),
+            default is no filter
+
+        body
+            Include the full question body in the response (assertion, tags,
+            metadata, etc.), default is True
+
+        judgments        
+            Include judgments when getting questions, default is False
+
+        since
+            Starting point from where to get questions, defaults to all
+            questions. Format is YYYY-MM-DD HH:MM:SS
+
+        pagesize
+            The number of questions to fetch per request, default is 5000
         """
-        resp, result = self.queue.questions.get()
-        fetch = result['questions']
-        return [ RabjQuestion(res) for (r, res) in self._get(fetch) ]
-    
+        params = {
+            'limit': pagesize,
+            'offset': 0
+        }
+        if since:
+            params['since'] = since
+        if judgments:
+            params['judgments'] = judgments
+        if body:
+            params['body'] = body
+
+        questions = []
+
+        while True:
+            if state:
+                resp, result = self.queue.questions[state].get(**params)
+            else:
+                resp, result = self.queue.questions.get(**params)
+            
+            questions.extend( RabjQuestion(res) for res in result['questions'] )
+
+            # keep fetching until no questions are returned
+            if ( len(result['questions']) < pagesize ):
+                break
+            else:
+                params['offset'] += params['limit']
+
+        return questions
+        
     def remove(self, questions, delete=False):
         """
         Removes somes questions from a queue, does not delete questions by
@@ -410,55 +458,25 @@ class RabjQueue(object):
 
     all_questions = getall
 
-    def completed_questions(self, since=None, judgments=False):
+    def completed_questions(self, body=True, judgments=False, since=None, pagesize=5000):
+        """
+        Fetch questions which have been completed. Optionally fetch
+        questions completed after a given point in time and include
+        judgments also
+        
+        See RabjQueue.getall() for a description of the parameters.
+        """
+        return self.getall(state='complete', since=since, judgments=judgments, pagesize=pagesize)
+
+    def incomplete_questions(self, body=True, judgments=False, since=None, pagesize=5000):
         """
         Fetch questions which have been completed. Optionally fetch
         questions completed after a given point in time and include
         judgments also
 
-        since
-            Starting point from where to get questions, defaults to all
-            questions. Format is YYYY-MM-DD HH:MM:SS
-
-        judgments        
-            Include judgments when getting questions, default is False
+        See RabjQueue.getall() for a description of the parameters.
         """
-        params = dict()
-        if since:
-            params['since'] = since
-
-        resp, result = self.queue.questions.complete.get(**params)
-        if judgments == True:
-            fetch = [ q.judgments for q in result['questions'] ]
-        else:
-            fetch = result['questions']
-            
-        return [ RabjQuestion(res) for (r, res) in self._get(fetch) ]
-
-    def incomplete_questions(self, since=None, judgments=False):
-        """
-        Fetch questions which have been completed. Optionally fetch
-        questions completed after a given point in time and include
-        judgments also
-
-        since
-            Starting point from where to get questions, defaults to all
-            questions. Format is YYYY-MM-DD HH:MM:SS
-
-        judgments        
-            Include judgments when getting questions, default is False
-        """
-        params = {'limit': 0}
-        if since:
-            params['since'] = since
-
-        resp, result = self.queue.questions.wanting.get(**params)
-        if judgments == True:
-            fetch = [ q.judgments for q in result['questions'] ]
-        else:
-            fetch = result['questions']
-
-        return [ RabjQuestion(res) for (r, res) in self._get(fetch) ]
+        return self.getall(state='wanting', since=since, judgments=judgments, pagesize=pagesize)
 
     def _get(self, rabj_callables):
         if self.parallel == True:
