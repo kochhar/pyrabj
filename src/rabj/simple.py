@@ -1,12 +1,12 @@
 import logging, Queue, multiprocessing
 from rabj import VERSION, APP
-import rabj.api as api, rabj.util as u
+import api as api, util as u
 api._def_headers['User-agent'] = ':'.join([APP, 'pyrabj.simple', VERSION])
 
 """
 Production instance of rabj
 """
-RABJ_PROD = "http://data.labs.freebase.com/"
+RABJ_PROD = "http://rabj.labs.freebase.com/"
 RABJ_TRUNK = "http://rabj.trunk.metaweb.com/"
 RABJ_QA = "http://rabj.qa.metaweb.com/"
 RABJ_SANDBOX = "http://rabj.sandbox.metaweb.com/"
@@ -46,7 +46,11 @@ class RabjServer(object):
         >>> print queue['owner']
         /user/kochhar
         """
-        votes = int(votes)
+        if isinstance(votes, basestring):
+            votes = int(votes)
+        elif isinstance(votes, dict):
+            for key in votes:
+                votes[key] = int(votes[key])
         
         if access_key is None:
             _log.warn("You are creating a new queue without providing an access key")
@@ -263,13 +267,13 @@ class RabjQueue(object):
         fetch can be passed as a parameter.
         """
         if question is not None:
-            assert isinstance(question, [basestring, dict])
+            assert isinstance(question, (basestring, dict))
             if isinstance(question, dict):
                 questionid = question['id']
             else:
                 questionid = question
 
-            resp, question = self.queue['../../../'][questionid].get()            
+            resp, question = self.queue['../../../../'][questionid].get()
         else:
             resp, question = self.queue.questions.get(limit=1)[0]['id']
 

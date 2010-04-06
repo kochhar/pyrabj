@@ -25,3 +25,8 @@ APP = app_name.replace('\\', '/')
 # add a default null handler to the logger to turn off warning messages
 _log = logging.getLogger('pyrabj')
 _log.addHandler(u.NullHandler())
+
+import simple as simple
+labsrv = simple.RabjServer(simple.RABJ_PROD)
+trunksrv = simple.RabjServer(simple.RABJ_TRUNK)
+
