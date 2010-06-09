@@ -3,8 +3,21 @@ containers.py
 
 module containing containers for rabj objects
 '''
-import jsonlib2, collections, cStringIO, logging, pprint
+import cStringIO, logging, pprint
 import util as u
+from util import json
+
+"""
+Jython 2.5 doesn't include Mapping and MutableSequence
+in its collections module. The extra methods probably
+aren't all that important in practice, so these are
+some stub versions for when they're not available.
+"""
+try:
+    from collections import Mapping, MutableSequence
+except ImportError:
+    class Mapping(): pass
+    class MutableSequence(): pass
 
 _log = logging.getLogger("pyrabj.containers")
 
@@ -50,11 +63,11 @@ class RabjContainer(object):
         """
         Convert the object to it's json representation
         """
-        return jsonlib2.dumps(self.data, escape_slash=False)
+        return json.dumps(self.data)
     
     
 from rabj.api import RabjCallable
-class RabjDict(RabjContainer, collections.Mapping):
+class RabjDict(RabjContainer, Mapping):
     """Mapping container for rabj responses
     """
     def __init__(self, result, url, *args, **kwargs):
@@ -101,7 +114,7 @@ class RabjDict(RabjContainer, collections.Mapping):
     def __len__(self):
         return len(self.data)
     
-class RabjList(RabjContainer, collections.MutableSequence):
+class RabjList(RabjContainer, MutableSequence):
     """Sequence container for rabj responses
     """
     def __init__(self, result, url):

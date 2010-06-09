@@ -1,6 +1,7 @@
-import logging, httplib2, jsonlib2, urllib, multiprocessing
+import logging, httplib2, urllib
 from rabj import VERSION, APP
 import util as u
+from util import json
 
 _def_headers = { 'Accept': 'application/json',
                  'Content-type': 'application/json',
@@ -8,6 +9,21 @@ _def_headers = { 'Accept': 'application/json',
                }
 
 _log = logging.getLogger("pyrabj.api")
+
+"""
+httplib2 requires the idna encoder to convert IRIs to URIs. Jython
+does not yet support idna encoding, so httplib2 will always fail.
+We can register ascii as "idna" to work around this problem, and
+just let internationalized domain names fail to resolve.
+"""
+import codecs
+try:
+    codecs.lookup("idna")
+except LookupError:
+    def find_idna(name):
+        if name == "idna":
+            return codecs.lookup("ascii")
+    codecs.register(find_idna)
 
 class RabjCallable(object):
     """
@@ -160,7 +176,7 @@ class RabjCallable(object):
             url = url + "?" + urllib.urlencode(params, doseq=True)
             body = None
         else:
-            body = jsonlib2.dumps(params, escape_slash=False)
+            body = json.dumps(params)
 
         return url, method, body, _def_headers
     
@@ -172,39 +188,6 @@ class RabjCallable(object):
         resp, content = self._http.request(url, method, body, headers)
         rabj_resp = RabjResponse(content, resp, url)
         return rabj_resp, rabj_resp.result
-
-
-def parallel_fetch(fetch_params, parallelism=2):
-    """
-    Fetch a set of urls in parallel.
-
-    fetch_params    
-        params to pass to a Fetcher, should be tuples of (url, method, body,
-        headers)
-        
-    parallelism
-        The number of processes to split into
-    """
-    assert parallelism > 0
-    
-    task_queue = multiprocessing.JoinableQueue()
-    result = multiprocessing.Queue()        
-
-    pool = [ u.Fetcher(task_queue, result) for _ in xrange(parallelism) ]
-    _log.info("Starting thread pool with %i workers", parallelism)
-    for p in pool:
-        p.start()
-
-    _log.info("placing %i url fetches on task queue", len(fetch_params))
-    for param_set in fetch_params:
-        task_queue.put(param_set)
-        
-    task_queue.join()
-    for p in pool:
-        p.stop()
-
-    results = [ RabjResponse(c, r, url) for (url, (r, c)) in [ result.get() for i in range(result.qsize()) ] ]
-    return [ (resp, resp.result) for resp in results ]
 
 import containers as c
 class RabjResponse(object):
@@ -248,13 +231,13 @@ class RabjResponse(object):
         """
         if resp['content-type'] == 'application/json':
             try:
-                envelope = jsonlib2.loads(content)
+                envelope = json.loads(content)
                 if envelope['status']['code']  == 200:
                     return envelope
                 else:
                     error = envelope['error']
                     raise RabjError(error['code'], error['class'], error['detail'], envelope)
-            except jsonlib2.ReadError, e:
+            except ValueError, e:
                 _log.warn("Decode error %s in content %s", e, content)
                 raise RabjError(resp.status, resp.reason, {'msg': e.message}, content)
         else:

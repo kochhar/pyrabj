@@ -6,7 +6,6 @@ Requirements
 
 This library and its dependencies require:
 
- * jsonlib2 
  * httplib2 0.4.0+
  * Python 2.6+.
  

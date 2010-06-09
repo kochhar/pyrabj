@@ -1,4 +1,4 @@
-import logging, Queue, multiprocessing
+import logging
 from rabj import VERSION, APP
 import api as api, util as u
 api._def_headers['User-agent'] = ':'.join([APP, 'pyrabj.simple', VERSION])
@@ -8,8 +8,6 @@ Production instance of rabj
 """
 RABJ_PROD = "http://rabj.labs.freebase.com/"
 RABJ_TRUNK = "http://rabj.trunk.metaweb.com/"
-RABJ_QA = "http://rabj.qa.metaweb.com/"
-RABJ_SANDBOX = "http://rabj.sandbox.metaweb.com/"
 
 _log = logging.getLogger('pyrabj.simple')
 
@@ -31,7 +29,6 @@ class RabjServer(object):
             self.server = server_url
         
         self.store = api.RabjCallable(self.server)[store_path]
-        self.threads = 1
         
     def create_queue(self, name, owner, votes, access_key, tags=None, **meta):
         """
@@ -65,7 +62,7 @@ class RabjServer(object):
         queue.update(meta)
         
         resp, queue = self.store.queues.post(queue=queue)
-        return RabjQueue(queue, threads=self.threads)
+        return RabjQueue(queue)
 
     def get_queue(self, queue_id, access_key=None):
         """
@@ -78,7 +75,7 @@ class RabjServer(object):
         True
         """
         resp, result = self.store[self._norm_qid(queue_id)].get(access_key=access_key)
-        return RabjQueue(result, threads=self.threads)
+        return RabjQueue(result)
     
     def delete_queue(self, queue, access_key=None):
         """
@@ -110,7 +107,7 @@ class RabjServer(object):
         Fetch a list of public queues
         """
         resp, result = self.store.queues.public.get()
-        return [ RabjQueue(queue, threads=self.threads) for queue in result ]
+        return [ RabjQueue(queue) for queue in result ]
     
     # common aliases
     queue_by_id = get_queue
@@ -126,7 +123,7 @@ class RabjServer(object):
         Fetch a list of queues which may be operated with a given access key
         """
         resp, result = self.store.queues.access_key.get(access_key=access_key)
-        return [ RabjQueue(queue, threads=self.threads) for queue in result ]
+        return [ RabjQueue(queue) for queue in result ]
 
     def queues_by_tags(self, tags, access_key=None):
         """
@@ -136,14 +133,14 @@ class RabjServer(object):
         if isinstance(tags, basestring):
             tags = [tags]
         resp, result = self.store.queues.tags.get(tag=tags, access_key=access_key)
-        return [ RabjQueue(queue, threads=self.threads) for queue in result ]
+        return [ RabjQueue(queue) for queue in result ]
     
     def queues_by_owner(self, owner, access_key=None):
         """
         Fetch a list of queues by owner
         """
         resp, result = self.store.users[owner].queues.get(access_key=access_key)
-        return [ RabjQueue(queue, threads=self.threads) for queue in result ]
+        return [ RabjQueue(queue) for queue in result ]
 
     queues_by_public = public_queues
     
@@ -178,7 +175,7 @@ class RabjQueue(object):
     access_key
         The access key for the queue on the server. Required if ``queue=None``
     """
-    def __init__(self, queue=None, server_url=None, id=None, access_key=None, threads=1):
+    def __init__(self, queue=None, server_url=None, id=None, access_key=None):
         """
         Create a new rabj queue. Not intended to be used directly, see the
         queue creation and fetching methods in RabjServer
@@ -189,7 +186,6 @@ class RabjQueue(object):
             resp, queue = api.RabjCallable(server_url, access_key=access_key)[id].get()
         
         self.queue = queue
-        self.threads = 2 if threads > 1 else 1
         self._status_fetched = False
         self._status = None
 
@@ -208,10 +204,6 @@ class RabjQueue(object):
     def __delitem__(self, key):
         del self.queue[key]
     
-    @property
-    def parallel(self):
-        return False
-        
     def update(self):
         """Save modifications to the current queue."""
         resp, result = self.queue.put(queue=self.queue)
@@ -372,6 +364,15 @@ class RabjQueue(object):
         """
         return self.remove(self.all_questions(), delete=True)
 
+    def publish(self):
+        self.queue.published.put()
+
+    def unpublish(self):
+        self.queue.published.delete()
+
+    def is_published(self):
+        return self.queue.published.get()[1]["published"]
+
     #### Some aliases ####
     def delete(self, *args, **kwargs):
         """
@@ -479,10 +480,7 @@ class RabjQueue(object):
         return self.getall(state='wanting', since=since, judgments=judgments, pagesize=pagesize)
 
     def _get(self, rabj_callables):
-        if self.parallel == True:
-            fetched = api.parallel_fetch([ rc.request_params(rc._url, "GET") for rc in rabj_callables ], self.threads)
-        else:
-            fetched = [ rc.get() for rc in rabj_callables ]
+        fetched = [ rc.get() for rc in rabj_callables ]
 
         return fetched
 
@@ -517,6 +515,20 @@ class RabjQuestion(object):
 
     def __delitem__(self, key):
         return self.question.__delitem__(key)
+
+    def get_state(self, queueid):
+        """
+        Gets the current state of the question
+        """
+        resp, result = self.question.state[queueid].get()
+        return result
+
+    def set_state(self, queueid, state):
+        """
+        Sets the current state of the question
+        """
+        resp, result = self.question.state[queueid].put(state=state)
+        return result
     
     def update(self):
         """Saves modifications to the question"""
