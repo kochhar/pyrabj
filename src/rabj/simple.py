@@ -272,9 +272,9 @@ class RabjQueue(object):
         return RabjQuestion(question)
 
         
-    def getall(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
+    def iterall(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
         """
-        Get a list of all the question on the queue
+        Iterate over all the questions on the queue
 
         state
             Filter the questions returned by state (complete|wanting|partial),
@@ -305,24 +305,30 @@ class RabjQueue(object):
         if body:
             params['body'] = body
 
-        questions = []
-
+        if state:
+            getter = self.queue.questions[state].get
+        else:
+            getter = self.queue.questions.get
         while True:
-            if state:
-                resp, result = self.queue.questions[state].get(**params)
-            else:
-                resp, result = self.queue.questions.get(**params)
-            
-            questions.extend( RabjQuestion(res) for res in result['questions'] )
+            resp, result = getter(**params)
+            for res in result['questions']:
+                yield RabjQuestion(res)
 
-            # keep fetching until no questions are returned
-            if ( len(result['questions']) < pagesize ):
+            # keep fetching until fewer than requested questions are returned
+            if len(result['questions']) < pagesize:
                 break
             else:
-                params['offset'] += params['limit']
+                params['offset'] += len(result['questions'])
 
-        return questions
-        
+        raise StopIteration
+
+    def getall(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
+        """
+        Get all the questions on the queue. See iterall for an explanation
+        of the parameters
+        """
+        return list(self.iterall(state, body, judgments, since, pagesize))
+
     def remove(self, questions, delete=False):
         """
         Removes somes questions from a queue, does not delete questions by
@@ -342,12 +348,6 @@ class RabjQueue(object):
         
         return result
 
-    def delete_cascade(self, questions):
-        """
-        Removes some questions from a queue and deletes the questions.
-        """
-        return self.remove(questions, delete=True)
-
     def removeall(self, delete=False):
         """
         Removes all questions from a queue, does not delete questions by
@@ -358,7 +358,13 @@ class RabjQueue(object):
         """
         return self.remove(self.all_questions(), delete)
     
-    def deletall_cascade(self):
+    def delete_cascade(self, questions):
+        """
+        Removes some questions from a queue and deletes the questions.
+        """
+        return self.remove(questions, delete=True)
+
+    def deleteall_cascade(self):
         """
         Remove all questions from a queue and delete the questions.
         """
