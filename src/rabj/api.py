@@ -1,7 +1,7 @@
 import logging, httplib2, urllib
 from rabj import VERSION, APP
 import util as u
-from util import json
+from util import json, EasyPeasyJsonEncoder
 
 _def_headers = { 'Accept': 'application/json',
                  'Content-type': 'application/json',
@@ -176,7 +176,7 @@ class RabjCallable(object):
             url = url + "?" + urllib.urlencode(params, doseq=True)
             body = None
         else:
-            body = json.dumps(params)
+            body = json.dumps(params, cls=EasyPeasyJsonEncoder)
 
         return url, method, body, _def_headers
     

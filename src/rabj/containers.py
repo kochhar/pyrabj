@@ -63,8 +63,10 @@ class RabjContainer(object):
         """
         Convert the object to it's json representation
         """
-        return json.dumps(self.data)
-    
+        return json.dumps(self.jsonable())
+
+    def jsonable(self):
+        return self.data
     
 from rabj.api import RabjCallable
 class RabjDict(RabjContainer, Mapping):

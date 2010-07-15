@@ -6,11 +6,33 @@ Utilities functions and class for using the Rabj APIs
 import logging, urlparse
 
 try:
-    import json
+    import happy.json
+    class json:
+        loads = staticmethod(happy.json.decode)
+        dumps = staticmethod(happy.json.encode)
+        class JSONEncoder(object): pass
 except ImportError:
-    import simplejson as json
+    try:
+        import json
+    except ImportError:
+        try:
+            import simplejson as json
+        except ImportError:
+            raise ImportError("Cannot find happy.json, stdlib json or simplejson.")    
 
 _log = logging.getLogger("pyrabj.util")
+
+class EasyPeasyJsonEncoder(json.JSONEncoder):
+    """ Class which provides json encoding facilities. Any object which has
+    a jsonable method can be converted to json. The jsonable method should
+    return a representation that is compatible with a json encoder -- i.e. a
+    python built-in type"""
+    
+    def default(self, o):
+        if hasattr(o, 'jsonable'):
+            return o.jsonable()
+        else:
+            return super(RabjContainerEncoder, self).default(o)
 
 class NullHandler(logging.Handler):
     """
