@@ -8,4 +8,5 @@
 /lib
 sp
 /src/pyrabj.egg-info
+/scripts
 *.pyc
