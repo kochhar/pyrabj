@@ -1,6 +1,6 @@
 import logging
 from rabj import VERSION, APP
-import api as api, util as u
+import api, containers, util as u
 api._def_headers['User-agent'] = ':'.join([APP, 'pyrabj.simple', VERSION])
 
 """
@@ -18,7 +18,7 @@ class RabjServer(object):
 
     server_url
         A url for the rabj server hosting the queue.
-    """    
+    """
     def __init__(self, server_url, store_path='rabj/store/'):
         """Create a new reference to a rabj server."""
         if server_url.endswith('/rabj/store/'):
@@ -162,7 +162,7 @@ class RabjQueue(object):
     :class:`~rabj.api.RabjCallable` object or by providing a server url, a
     queue id and an access_key.
 
-    queue    
+    queue
         A :class:`~rabj.api.RabjCallable` which references a queue. Required
         if ``server_url`` and ``id`` are None
 
@@ -205,12 +205,12 @@ class RabjQueue(object):
         del self.queue[key]
     
     def update(self):
-        """Save modifications to the current queue."""
+        """Save modifications to the current queue. Returns the updated result"""
         resp, result = self.queue.put(queue=self.queue)
         self.queue = result
         return self
     
-    def addone(self, assertion, answerspace, **meta):
+    def add_one(self, assertion, answerspace, **meta):
         """
         Add a single question defined by its assertion, answerspace and any
         other metadata as keyword args.
@@ -221,14 +221,14 @@ class RabjQueue(object):
         resp, result = self.queue.questions.post(questions=[question])
         return result['questions']
     
-    def addall(self, three_tuples, pagesize=1000):
+    def add_all(self, three_tuples, pagesize=1000):
         """
         Add questions passed as three-tuples (assertion, answerspace,
         metadata dict), optionally provide a batchsize, default of 1000
 
-        three_tuples:        
+        three_tuples:
             An iterable containing tuples. The first element is treated as
-            the assertion, the second as the answerspace and the third as a            
+            the assertion, the second as the answerspace and the third as a
             dictionary containing other metadata.
 
         pagesize:
@@ -253,7 +253,7 @@ class RabjQueue(object):
         
         return added
     
-    def getone(self, question=None):
+    def get_one(self, question=None):
         """
         Get one question from the queue. Optionally the id of the question to
         fetch can be passed as a parameter.
@@ -267,12 +267,12 @@ class RabjQueue(object):
 
             resp, question = self.queue['../../../../'][questionid].get()
         else:
-            resp, question = self.queue.questions.get(limit=1)[0]['id']
+            resp, result = self.queue.questions.get(limit=1)
+            resp, question = result['questions'][0].http_get()
 
         return RabjQuestion(question)
 
-        
-    def iterall(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
+    def iter_all(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
         """
         Iterate over all the questions on the queue
 
@@ -284,7 +284,7 @@ class RabjQueue(object):
             Include the full question body in the response (assertion, tags,
             metadata, etc.), default is True
 
-        judgments        
+        judgments
             Include judgments when getting questions, default is False
 
         since
@@ -322,12 +322,12 @@ class RabjQueue(object):
 
         raise StopIteration
 
-    def getall(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
+    def get_all(self, state=None, body=True, judgments=False, since=None, pagesize=5000):
         """
-        Get all the questions on the queue. See iterall for an explanation
+        Get all the questions on the queue. See iter_all for an explanation
         of the parameters
         """
-        return list(self.iterall(state, body, judgments, since, pagesize))
+        return list(self.iter_all(state, body, judgments, since, pagesize))
 
     def remove(self, questions, delete=False):
         """
@@ -345,10 +345,10 @@ class RabjQueue(object):
         if delete:
             for q in questions:
                 q.delete()
-        
+
         return result
 
-    def removeall(self, delete=False):
+    def remove_all(self, delete=False):
         """
         Removes all questions from a queue, does not delete questions by
         default.
@@ -364,7 +364,7 @@ class RabjQueue(object):
         """
         return self.remove(questions, delete=True)
 
-    def deleteall_cascade(self):
+    def delete_all_cascade(self):
         """
         Remove all questions from a queue and delete the questions.
         """
@@ -380,24 +380,15 @@ class RabjQueue(object):
         return self.queue.published.get()[1]["published"]
 
     #### Some aliases ####
-    def delete(self, *args, **kwargs):
-        """
-        Alias for remove
-        """
-        return self.remove(*args, **kwargs)
-    
-    def deleteall(self, *args, **kwargs):
-        """
-        Alias for removeall
-        """
-        return self.removall(*args, **kwargs)
-
-    add_one = addone
-    add_all = addall
-    get_one = getone
-    get_all = getall
-    remove_all = removeall
-    delete_all = deleteall
+    iterall = iter_all
+    addone = add_one
+    addall = add_all
+    getone = get_one
+    getall = get_all
+    removeall = remove_all
+    delete = remove
+    delete_all = remove_all
+    deleteall = delete_all
     
     @property
     def questions(self):
@@ -490,8 +481,7 @@ class RabjQueue(object):
 
         return fetched
 
-    
-class RabjQuestion(object):
+class RabjQuestion(containers.RabjDict):
     """
     A wrapper class around a rabj question, provides convenience methods for
     introspecting the state of the question. This class behaves much like a
@@ -504,51 +494,37 @@ class RabjQuestion(object):
 
         if not question:
             resp, question = api.RabjCallable(server)[id].get()
-            
-        self.question = question
 
-    def __repr__(self):
-        return repr(self.question)
-
-    def __str__(self):
-        return str(self.question)
-
-    def __getitem__(self, key):
-        return self.question[key]
-
-    def __setitem__(self, key, value):
-        return self.question.__setitem__(key, value)
-
-    def __delitem__(self, key):
-        return self.question.__delitem__(key)
-
+        # copies from the question rabj dict to this object
+        self.copy_from_other(question)
+    
     def get_state(self, queueid):
         """
         Gets the current state of the question
         """
-        resp, result = self.question.state[queueid].get()
+        resp, result = self.state[queueid].get()
         return result
 
     def set_state(self, queueid, state):
         """
         Sets the current state of the question
         """
-        resp, result = self.question.state[queueid].put(state=state)
+        resp, result = self.state[queueid].put(state=state)
         return result
     
     def update(self):
         """Saves modifications to the question"""
-        resp, result = self.question.put(question=self.question)
-        self.question = result
+        resp, result = self.http_put(question=self)
+        self.copy_from_other(result)
         return self
 
     def delete(self):
         """Deletes the question from rabj"""
-        resp, result = self.question.delete()
+        resp, result = self.http_delete()
         return result
         
     def judgments(self):
         """Fetches this questions judgments"""
-        resp, result = self.question.judgments.get()
+        resp, result = self['judgments'].get()
         return result['judgments']
     
