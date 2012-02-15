@@ -1,5 +1,5 @@
 .svn
-/Makefile
+Makefile
 /bin
 /bootstrap
 /build
@@ -9,4 +9,6 @@
 sp
 /src/pyrabj.egg-info
 /scripts
+/tests/simpletest.py
 *.pyc
+
